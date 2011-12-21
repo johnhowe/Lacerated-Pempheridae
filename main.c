@@ -77,19 +77,11 @@ int encodePacket(uint8_t* rawPacket, uint8_t* encoded, int rawLength)
 	return outputIndex;
 }
 
-void writePacket(uint8_t* encodedPacket, int lengthOfIt)
-{
-	// TODO use fd to write this shit out
-	for (int i = 0; i < lengthOfIt; i++) {
-		printf("%x", encodedPacket[i]);
-	}
-}
-
 void sendPacket(uint8_t* rawPacket, int rawLength)
 {
 	uint8_t encodedPacket[(rawLength * 2) + 2];    // Worst case, 100% escaped bytes + start and stop
-int	encodedLength = encodePacket(rawPacket, encodedPacket, rawLength);// Actual length returned
-	writePacket(encodedPacket, encodedLength);
+	int encodedLength = encodePacket(rawPacket, encodedPacket, rawLength);    // Actual length returned
+	write(fd, encodedPacket, encodedLength);
 }
 
 void stopLogging(void)
