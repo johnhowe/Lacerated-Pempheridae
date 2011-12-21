@@ -3,6 +3,7 @@
  *
  * A PC utility to sweep RPM with the MissingTooth hack benchtest
  *
+ * @author John Howe
  */
 
 #include <stdio.h>
@@ -24,9 +25,84 @@ int teeth = 12;
 
 int fd;
 
+/*
+ * Function to turn a packet structure into something serialisable for FreeEMS consumption.
+ *
+ * @note output array must be sized = (lengthOfInput * 2) + 2
+ *
+ * @return the encoded length, including start/stop bytes
+ *
+ * @author Fred Cooke
+ */
+int encodePacket(uint8_t* rawPacket, uint8_t* encoded, int rawLength)
+{
+	uint8_t checksum = 0;
+	encoded[0] = 0xAA;
+	int outputIndex = 1;
+	for(int inputIndex = 0; inputIndex < rawLength;inputIndex++)
+	{
+		checksum += rawPacket[inputIndex];
+		switch (rawPacket[inputIndex])
+		{
+		case 0xAA:
+		{
+			encoded[outputIndex] = 0xBB;
+			outputIndex++;
+			encoded[outputIndex] = 0x55;
+			outputIndex++;
+			break;
+		}
+		case 0xBB:
+		{
+			encoded[outputIndex] = 0xBB;
+			outputIndex++;
+			encoded[outputIndex] = 0x44;
+			outputIndex++;
+			break;
+		}
+		case 0xCC:
+		{
+			encoded[outputIndex] = 0xBB;
+			outputIndex++;
+			encoded[outputIndex] = 0x33;
+			outputIndex++;
+			break;
+		}
+		default:
+		{
+			encoded[outputIndex] = rawPacket[inputIndex];
+			outputIndex++;
+			break;
+		}
+		}
+	}
+	encoded[outputIndex] = checksum;
+	outputIndex++;
+	encoded[outputIndex] = 0xCC;
+	outputIndex++;
+	return outputIndex;
+}
+
+void writePacket(uint8_t* encodedPacket, int lengthOfIt)
+{
+	// TODO use fd to write this shit out
+	for(int i=0; i < lengthOfIt;i++){
+	printf("%x", encodedPacket[i]);
+	}
+}
+
+void sendPacket(uint8_t* rawPacket, int rawLength)
+{
+	uint8_t encodedPacket[(rawLength*2)+2]; // Worst case, 100% escaped bytes + start and stop
+	int encodedLength = encodePacket(rawPacket, encodedPacket, rawLength); // Actual length returned
+	writePacket(encodedPacket, encodedLength);
+}
+
 void stopLogging(void)
 {
-
+	// Write to RAM description{flag,  payloadID, locationID,     offset,     length, data};
+	uint8_t stop_streaming[] = {0x00, 0x01, 0x00, 0x90, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00};
+	sendPacket(stop_streaming, 10);
 }
 
 void setupBenchTest(void)
