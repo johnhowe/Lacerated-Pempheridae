@@ -19,6 +19,10 @@
 
 #define PACKET_DELAY 3000 // microseconds to wait between packets
 #define BAUD_RATE 115200
+
+#define BASETEETH_INDEX 4
+#define TICKS_PER_EVENT_INDEX 7
+
 int minRPM = 50;
 int maxRPM = 9000;
 int startRPM = 50;
@@ -130,17 +134,12 @@ void setupBenchTest(void)
 void writeRPM(int rpm)
 {
 	static uint8_t rpmPacket[] = { 0x00, 0x77, 0x77, 0x01, 0x0C, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-        const int packetLength = 27;
+        rpmPacket[BASETEETH_INDEX] = baseteeth;
 
-        rpmPacket[4] = baseteeth;
+        uint16_t ticksPerEvent = (rpm * 60000000) / (0.8 * baseteeth);
+        rpmPacket[TICKS_PER_EVENT_INDEX] = ticksPerEvent;
 
-        //uint16_t ticksPerEvent = 60000000 / (baseteeth * toothperiod * 0.8);
-        const int clockHz = 1000000; // Fred, help me out here ;)
-        uint16_t ticksPerEvent = (clockHz * 60) / (rpm * baseteeth);
-
-        rpmPacket[7] = ticksPerEvent;
-
-        sendPacket(rpmPacket, packetLength);
+        sendPacket(rpmPacket, sizeof(rpmPacket));
 }
 
 int calcRPM(int time)
