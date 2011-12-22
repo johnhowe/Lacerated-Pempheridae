@@ -96,7 +96,6 @@ void sendPacket(uint8_t* rawPacket, int rawLength)
 	uint8_t encodedPacket[(rawLength * 2) + 2];    // Worst case, 100% escaped bytes + start and stop
 	int encodedLength = encodePacket(rawPacket, encodedPacket, rawLength);    // Actual length returned
 	write(fd, encodedPacket, encodedLength);
-        usleep(PACKET_DELAY);
 }
 
 void stopLogging(void)
@@ -156,7 +155,7 @@ void startSweep(void)
 	for (int i = 0; i < count; i++) {
 		int rpm = calcRPM(i);
 		writeRPM(rpm);
-		// sleep?
+                usleep(PACKET_DELAY);
 	}
 }
 
@@ -244,7 +243,9 @@ int main(int argc, char **argv)
 	}
 
 	stopLogging();
+        usleep(PACKET_DELAY);
 	setupBenchTest();
+        usleep(PACKET_DELAY);
 	startSweep();
 
 	tcsetattr(fd, TCSANOW, &oldtermios);
