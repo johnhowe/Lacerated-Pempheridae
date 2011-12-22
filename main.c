@@ -15,7 +15,9 @@
 #include <errno.h>
 #include <termios.h>
 #include <sys/ioctl.h>
+#include <time.h>
 
+#define PACKET_DELAY 3000 // microseconds to wait between packets
 #define BAUD_RATE 115200
 int minRPM = 50;
 int maxRPM = 9000;
@@ -24,6 +26,14 @@ int duration = 1;
 uint8_t baseteeth = 12;
 
 int fd;
+
+void usleep(unsigned long usec)
+{
+        struct timespec reqtime;
+        reqtime.tv_sec = 0;
+        reqtime.tv_nsec = usec * 1000;
+        nanosleep(&reqtime, NULL);
+}
 
 /*
  * Function to turn a packet structure into something serialisable for FreeEMS consumption.
@@ -82,6 +92,7 @@ void sendPacket(uint8_t* rawPacket, int rawLength)
 	uint8_t encodedPacket[(rawLength * 2) + 2];    // Worst case, 100% escaped bytes + start and stop
 	int encodedLength = encodePacket(rawPacket, encodedPacket, rawLength);    // Actual length returned
 	write(fd, encodedPacket, encodedLength);
+        usleep(PACKET_DELAY);
 }
 
 void stopLogging(void)
