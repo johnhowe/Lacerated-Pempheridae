@@ -17,6 +17,8 @@
 #include <sys/ioctl.h>
 #include <time.h>
 
+#define true 1
+#define false 0
 
 #define START_BYTE          0xAA
 #define ESCAPE_BYTE         0xBB
@@ -191,16 +193,16 @@ void startSweep(void)
         //it should really be a percentage change, such that at say 100 rpm it changes by 1 rpm per second and at 200 rpm 2 per second and so on
         case(triangle):
         default:
-                while (1) {
+                while (true) {
                         if (rising){
                                 RPM++;
                                 if (RPM >= maxRPM) {
-                                        rising = 0;
+                                        rising = false;
                                 }
                         } else {
                                 RPM--;
                                 if (RPM <= minRPM) {
-                                        rising = 1;
+                                        rising = true;
                                 }
                         }
 
