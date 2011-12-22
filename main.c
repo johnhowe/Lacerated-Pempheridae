@@ -287,7 +287,7 @@ int main(int argc, char **argv)
 	termopts.c_cflag &= ~CSIZE;
 	termopts.c_cflag |= CS8;
 	if (tcsetattr(fd, TCSANOW, &termopts) < 0) {
-		perror("Die");
+		perror("Unable to set terminal parameters");
 
 		tcsetattr(fd, TCSANOW, &oldtermios);
 		close(fd);
