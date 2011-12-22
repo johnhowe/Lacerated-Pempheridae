@@ -45,6 +45,9 @@
 #define microSecondsInOneMinute  60000000
 #define tickSizeInFreeEMS               0.8
 
+enum pattern {
+        triangle, sinusoid, exponential
+};
 
 int minRPM = 120;
 int maxRPM = 12000;
@@ -180,10 +183,32 @@ uint16_t getTicksFromRPM(uint16_t RPM)
 
 void startSweep(void)
 {
-	for (uint16_t RPM = minRPM; RPM < maxRPM; RPM++) {
-		writeRPM(getTicksFromRPM(RPM));
-                usleep(RPM_PACKET_DELAY);
-	}
+        enum pattern sweepShape = triangle;
+
+        uint16_t RPM = minRPM;
+        int rising = 1;
+        switch(sweepShape) {
+        //it should really be a percentage change, such that at say 100 rpm it changes by 1 rpm per second and at 200 rpm 2 per second and so on
+        case(triangle):
+        default:
+                while (1) {
+                        if (rising){
+                                RPM++;
+                                if (RPM >= maxRPM) {
+                                        rising = 0;
+                                }
+                        } else {
+                                RPM--;
+                                if (RPM <= minRPM) {
+                                        rising = 1;
+                                }
+                        }
+
+                        writeRPM(getTicksFromRPM(RPM));
+                        usleep(RPM_PACKET_DELAY);
+                }
+                break;
+        }
 }
 
 void parseArg(char *arg)
