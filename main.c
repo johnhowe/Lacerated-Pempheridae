@@ -17,6 +17,16 @@
 #include <sys/ioctl.h>
 #include <time.h>
 
+
+#define START_BYTE          0xAA
+#define ESCAPE_BYTE         0xBB
+#define STOP_BYTE           0xCC
+
+#define ESCAPED_START_BYTE  0x55
+#define ESCAPED_ESCAPE_BYTE 0x44
+#define ESCAPED_STOP_BYTE   0x33
+
+
 #define PACKET_DELAY 3000 // microseconds to wait between packets
 #define BAUD_RATE 115200
 
@@ -51,29 +61,29 @@ void usleep(unsigned long usec)
 int encodePacket(uint8_t* rawPacket, uint8_t* encoded, int rawLength)
 {
 	uint8_t checksum = 0;
-	encoded[0] = 0xAA;
+	encoded[0] = START_BYTE;
 	int outputIndex = 1;
 	for (int inputIndex = 0; inputIndex < rawLength; inputIndex++) {
 		checksum += rawPacket[inputIndex];
 		switch (rawPacket[inputIndex]) {
-		case 0xAA: {
-			encoded[outputIndex] = 0xBB;
+		case START_BYTE: {
+			encoded[outputIndex] = ESCAPE_BYTE;
 			outputIndex++;
-			encoded[outputIndex] = 0x55;
-			outputIndex++;
-			break;
-		}
-		case 0xBB: {
-			encoded[outputIndex] = 0xBB;
-			outputIndex++;
-			encoded[outputIndex] = 0x44;
+			encoded[outputIndex] = ESCAPED_START_BYTE;
 			outputIndex++;
 			break;
 		}
-		case 0xCC: {
-			encoded[outputIndex] = 0xBB;
+		case ESCAPE_BYTE: {
+			encoded[outputIndex] = ESCAPE_BYTE;
 			outputIndex++;
-			encoded[outputIndex] = 0x33;
+			encoded[outputIndex] = ESCAPED_ESCAPE_BYTE;
+			outputIndex++;
+			break;
+		}
+		case STOP_BYTE: {
+			encoded[outputIndex] = ESCAPE_BYTE;
+			outputIndex++;
+			encoded[outputIndex] = ESCAPED_STOP_BYTE;
 			outputIndex++;
 			break;
 		}
@@ -86,7 +96,7 @@ int encodePacket(uint8_t* rawPacket, uint8_t* encoded, int rawLength)
 	}
 	encoded[outputIndex] = checksum;
 	outputIndex++;
-	encoded[outputIndex] = 0xCC;
+	encoded[outputIndex] = STOP_BYTE;
 	outputIndex++;
 	return outputIndex;
 }
