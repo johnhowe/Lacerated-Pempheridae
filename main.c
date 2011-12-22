@@ -173,14 +173,14 @@ void writeRPM(uint16_t RPM)
 	sendPacket(adjustRpmPacket, sizeof(adjustRpmPacket));
 }
 
-uint16_t getTicksFromRPM(int RPM)
+uint16_t getTicksFromRPM(uint16_t RPM)
 {
-	return RPM * ((microSecondsInOneMinute / tickSizeInFreeEMS) / baseTeeth);
+	return (uint16_t)((microSecondsInOneMinute / tickSizeInFreeEMS) / (RPM * baseTeeth));
 }
 
 void startSweep(void)
 {
-	for (uint16_t RPM = maxRPM; RPM > minRPM; RPM--) {
+	for (uint16_t RPM = minRPM; RPM < maxRPM; RPM++) {
 		writeRPM(getTicksFromRPM(RPM));
                 usleep(RPM_PACKET_DELAY);
 	}
