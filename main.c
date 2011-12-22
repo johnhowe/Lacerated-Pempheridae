@@ -102,7 +102,7 @@ void stopLogging(void)
 {
 	// Write to RAM description{flag,  payloadID, locationID,     offset,     length, data};
 	uint8_t stop_streaming[] = { 0x00, 0x01, 0x00, 0x90, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00 };
-	sendPacket(stop_streaming, 10);
+	sendPacket(stop_streaming, sizeof(stop_streaming));
 }
 
 void setupBenchTest(void)
