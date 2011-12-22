@@ -6,3 +6,5 @@ all:
 install:
 	cp pempheridae ~/bin/
 
+clean:
+	rm pempheridae
