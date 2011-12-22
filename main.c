@@ -21,7 +21,7 @@ int minRPM = 50;
 int maxRPM = 9000;
 int startRPM = 50;
 int duration = 1;
-int teeth = 12;
+uint8_t baseteeth = 12;
 
 int fd;
 
@@ -96,10 +96,39 @@ void setupBenchTest(void)
 
 }
 
+/**
+ *
+ * Creates and writes an RPM packet.
+ *
+ * rpmPacket as so:
+ *
+ * 0x00 flags - correct
+ * 0x7777 payload ID - correct
+ * 0x01 mode - correct
+ * 0x0C events per cycle / base teeth = 12/0x0C for default, 36/0x24 for common
+ * 0xFFFF cycles, max this out
+ * 0x???? ticks per event / effective rpm - set this dynamically, this is the initial value only
+ * 00 00 00 00 00 00 - zeros for ease of manual checksum verification
+ * 0x0003 This triggers the special mode
+ * 0x0000 irrelevant as long as it's not 0x3, zeros easy to count
+ * 0x0000 irrelevant as long as it's not 0x3, zeros easy to count
+ * 0x0000 irrelevant as long as it's not 0x3, zeros easy to count
+ * 0x0000 irrelevant as long as it's not 0x3, zeros easy to count
+ * 0x0000 irrelevant as long as it's not 0x3, zeros easy to count
+ */
 void writeRPM(int rpm)
 {
-	printf("%d\n", rpm);
+	static uint8_t rpmPacket[] = { 0x00, 0x77, 0x77, 0x01, 0x0C, 0xFF, 0xFF, 0x00 0x00 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+        const int packetLength = 27;
 
+        rpmPacket[4] = baseteeth;
+
+        //uint16_t ticksPerEvent = 60000000 / (baseteeth * toothperiod * 0.8);
+        uint16_t ticksPerEvent = (clockHz * 60) / (rpm * baseteeth);
+
+        rpmPacket[7] = ticksPerEvent;
+
+        sendPacket(rpmPacket, packetLength);
 }
 
 int calcRPM(int time)
@@ -125,7 +154,7 @@ void parseArg(char *arg)
 	char *p = arg + 1;
 
 	switch (*p) {
-	/* Help */
+                /* Help */
 	case 'h':
 		printf("Help is on the way.\n");
 		exit(1);
@@ -153,7 +182,7 @@ void parseArg(char *arg)
 
 		/* Base teeth */
 	case 't':
-		teeth = atoi(p + 1);
+		baseteeth = atoi(p + 1);
 		break;
 
 		/* Inter packet pause (microseconds) */
