@@ -27,17 +27,30 @@
 #define ESCAPED_STOP_BYTE   0x33
 
 
-#define PACKET_DELAY 3000 // microseconds to wait between packets
+#define STOP_PACKET_DELAY     15000 // microseconds to wait after sending a stop logging packet
+#define TEST_PACKET_DELAY     25000 // microseconds to wait after sending a bench test packet
+#define RPM_PACKET_DELAY       5000 // microseconds to wait between rpm setter packets
+
+
 #define BAUD_RATE 115200
 
-#define BASETEETH_INDEX 4
-#define TICKS_PER_EVENT_INDEX 7
 
-int minRPM = 50;
-int maxRPM = 9000;
-int startRPM = 50;
+#define BASETEETH_INDEX 4
+#define TICKS_PER_EVENT_LOW_BYTE_INDEX   8
+#define TICKS_PER_EVENT_HIGH_BYTE_INDEX  7
+#define RPM_LOW_BYTE_INDEX              10
+#define RPM_HIGH_BYTE_INDEX              9
+
+
+#define microSecondsInOneMinute  60000000
+#define tickSizeInFreeEMS               0.8
+
+
+int minRPM = 120;
+int maxRPM = 12000;
+int startRPM = 120;
 int duration = 1;
-uint8_t baseteeth = 12;
+uint8_t baseTeeth = 12;
 
 int fd;
 
@@ -115,16 +128,11 @@ void stopLogging(void)
 	sendPacket(stop_streaming, sizeof(stop_streaming));
 }
 
-void setupBenchTest(void)
-{
-
-}
-
 /**
  *
- * Creates and writes an RPM packet.
+ * Creates and writes a special bench test initiate packet.
  *
- * rpmPacket as so:
+ * Packet content description:
  *
  * 0x00 flags - correct
  * 0x7777 payload ID - correct
@@ -140,32 +148,41 @@ void setupBenchTest(void)
  * 0x0000 irrelevant as long as it's not 0x3, zeros easy to count
  * 0x0000 irrelevant as long as it's not 0x3, zeros easy to count
  */
-void writeRPM(int rpm)
+void setupBenchTest(uint8_t eventsPerCycle, uint16_t ticksPerEvent)
 {
-	static uint8_t rpmPacket[] = { 0x00, 0x77, 0x77, 0x01, 0x0C, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-        rpmPacket[BASETEETH_INDEX] = baseteeth;
+	static uint8_t setupBenchTestPacket[] = { 0x00, 0x77, 0x77, 0x01, 0x0C, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
-        uint16_t ticksPerEvent = (rpm * 60000000) / (0.8 * baseteeth);
-        rpmPacket[TICKS_PER_EVENT_INDEX] = ticksPerEvent;
+	uint8_t lowByte = (uint8_t)(0xFF & ticksPerEvent);
+	uint8_t highByte = (uint8_t)(ticksPerEvent >> 8);
+	setupBenchTestPacket[TICKS_PER_EVENT_LOW_BYTE_INDEX] = lowByte;
+	setupBenchTestPacket[TICKS_PER_EVENT_HIGH_BYTE_INDEX] = highByte;
+	setupBenchTestPacket[BASETEETH_INDEX] = eventsPerCycle;
 
-        sendPacket(rpmPacket, sizeof(rpmPacket));
+        sendPacket(setupBenchTestPacket, sizeof(setupBenchTestPacket));
 }
 
-int calcRPM(int time)
+void writeRPM(uint16_t RPM)
 {
+	static uint8_t adjustRpmPacket[] = { 0x00, 0x01, 0x00, 0xF0, 0x01, 0x00, 0x1A, 0x00, 0x02, 0x00, 0x00 };
 
-	int rpm;
-	rpm = 100 * (time);
-	return rpm;
+        uint8_t lowByte = (uint8_t)(0xFF & RPM);
+        uint8_t highByte = (uint8_t)(RPM >> 8);
+        adjustRpmPacket[RPM_LOW_BYTE_INDEX] = lowByte;
+        adjustRpmPacket[RPM_HIGH_BYTE_INDEX] = highByte;
+
+	sendPacket(adjustRpmPacket, sizeof(adjustRpmPacket));
+}
+
+uint16_t getTicksFromRPM(int RPM)
+{
+	return RPM * ((microSecondsInOneMinute / tickSizeInFreeEMS) / baseTeeth);
 }
 
 void startSweep(void)
 {
-	int count = duration;
-	for (int i = 0; i < count; i++) {
-		int rpm = calcRPM(i);
-		writeRPM(rpm);
-                usleep(PACKET_DELAY);
+	for (uint16_t RPM = maxRPM; RPM > minRPM; RPM--) {
+		writeRPM(getTicksFromRPM(RPM));
+                usleep(RPM_PACKET_DELAY);
 	}
 }
 
@@ -202,7 +219,7 @@ void parseArg(char *arg)
 
 		/* Base teeth */
 	case 't':
-		baseteeth = atoi(p + 1);
+		baseTeeth = atoi(p + 1);
 		break;
 
 		/* Inter packet pause (microseconds) */
@@ -235,11 +252,12 @@ int main(int argc, char **argv)
 	fd = open("/dev/ttyUSB0", O_RDWR);
 	tcgetattr(fd, &oldtermios);
 
-	/* 8N1 */
+	/* 8O1 */
 	memset(&termopts, 0, sizeof(termopts));
 	cfsetispeed(&termopts, BAUD_RATE);
 	cfsetospeed(&termopts, BAUD_RATE);
-	termopts.c_cflag &= ~PARENB;
+	termopts.c_cflag |= PARENB;
+	termopts.c_cflag |= PARODD;
 	termopts.c_cflag &= ~CSTOPB;
 	termopts.c_cflag &= ~CSIZE;
 	termopts.c_cflag |= CS8;
@@ -253,9 +271,9 @@ int main(int argc, char **argv)
 	}
 
 	stopLogging();
-        usleep(PACKET_DELAY);
-	setupBenchTest();
-        usleep(PACKET_DELAY);
+        usleep(STOP_PACKET_DELAY);
+	setupBenchTest(baseTeeth, getTicksFromRPM(startRPM));
+        usleep(TEST_PACKET_DELAY);
 	startSweep();
 
 	tcsetattr(fd, TCSANOW, &oldtermios);
