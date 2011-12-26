@@ -211,13 +211,13 @@ void startSweep(void)
                                 }
                         }
 
-                        static int dispCountdown = 1000000/RPM_PACKET_DELAY/DISPLAY_HZ;
-                        dispCountdown--;
+                        static int dispCountdown = 0;
                         if (dispCountdown == 0) {
                                 printf("\r %6d RPM",RPM);
                                 fflush(stdout);
                                 dispCountdown = 1000000/RPM_PACKET_DELAY/DISPLAY_HZ;
                         }
+                        dispCountdown--;
 
                         writeRPM(getTicksFromRPM(RPM));
                         usleep(RPM_PACKET_DELAY);
