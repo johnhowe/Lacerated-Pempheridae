@@ -201,13 +201,11 @@ void startSweep(void)
                                 RPM++;
                                 if (RPM >= maxRPM) {
                                         rising = false;
-                                        printf("\nMAX=%d\n",RPM);
                                 }
                         } else {
                                 RPM--;
                                 if (RPM <= minRPM) {
                                         rising = true;
-                                        printf("\nMIN=%d\n",RPM);
                                 }
                         }
 
@@ -304,10 +302,12 @@ int main(int argc, char **argv)
 	if (tcsetattr(fd, TCSANOW, &termopts) < 0) {
 		perror("Unable to set terminal parameters");
 
+#ifndef DEBUG
 		tcsetattr(fd, TCSANOW, &oldtermios);
 		close(fd);
 
 		return -1;
+#endif
 	}
 
 	stopLogging();
