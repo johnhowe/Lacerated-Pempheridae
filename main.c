@@ -33,6 +33,7 @@
 #define TEST_PACKET_DELAY     25000 // microseconds to wait after sending a bench test packet
 #define RPM_PACKET_DELAY       5000 // microseconds to wait between rpm setter packets
 
+#define DISPLAY_HZ 10 // rate to update console output
 
 #define BAUD_RATE 115200
 
@@ -166,16 +167,24 @@ void setupBenchTest(uint8_t eventsPerCycle, uint16_t ticksPerEvent)
         sendPacket(setupBenchTestPacket, sizeof(setupBenchTestPacket));
 }
 
-void writeRPM(uint16_t RPM)
+void writeRPM(uint16_t rpm)
 {
 	static uint8_t adjustRpmPacket[] = { 0x00, 0x01, 0x00, 0xF0, 0x01, 0x00, 0x1A, 0x00, 0x02, 0x00, 0x00 };
 
-        uint8_t lowByte = (uint8_t)(0xFF & RPM);
-        uint8_t highByte = (uint8_t)(RPM >> 8);
+        uint8_t lowByte = (uint8_t)(0xFF & rpm);
+        uint8_t highByte = (uint8_t)(rpm >> 8);
         adjustRpmPacket[RPM_LOW_BYTE_INDEX] = lowByte;
         adjustRpmPacket[RPM_HIGH_BYTE_INDEX] = highByte;
 
 	sendPacket(adjustRpmPacket, sizeof(adjustRpmPacket));
+
+        static int dispCountdown = 1000000/RPM_PACKET_DELAY/DISPLAY_HZ;
+        dispCountdown--;
+        if (dispCountdown == 0) {
+                printf("\r %6d RPM",rpm);
+                fflush(stdout);
+                dispCountdown = 1000000/RPM_PACKET_DELAY/DISPLAY_HZ;
+        }
 }
 
 uint16_t getTicksFromRPM(uint16_t RPM)
@@ -266,7 +275,7 @@ void parseArg(char *arg)
 
 int main(int argc, char **argv)
 {
-	struct termios oldtermios, termopts;
+        struct termios oldtermios, termopts;
 
 	for (int i = 1; i < argc; i++) {
 		char *arg = argv[i];
