@@ -167,24 +167,17 @@ void setupBenchTest(uint8_t eventsPerCycle, uint16_t ticksPerEvent)
         sendPacket(setupBenchTestPacket, sizeof(setupBenchTestPacket));
 }
 
-void writeRPM(uint16_t rpm)
+void writeRPM(uint16_t rpmTicks)
 {
+
 	static uint8_t adjustRpmPacket[] = { 0x00, 0x01, 0x00, 0xF0, 0x01, 0x00, 0x1A, 0x00, 0x02, 0x00, 0x00 };
 
-        uint8_t lowByte = (uint8_t)(0xFF & rpm);
-        uint8_t highByte = (uint8_t)(rpm >> 8);
+        uint8_t lowByte = (uint8_t)(0xFF & rpmTicks);
+        uint8_t highByte = (uint8_t)(rpmTicks >> 8);
         adjustRpmPacket[RPM_LOW_BYTE_INDEX] = lowByte;
         adjustRpmPacket[RPM_HIGH_BYTE_INDEX] = highByte;
 
 	sendPacket(adjustRpmPacket, sizeof(adjustRpmPacket));
-
-        static int dispCountdown = 1000000/RPM_PACKET_DELAY/DISPLAY_HZ;
-        dispCountdown--;
-        if (dispCountdown == 0) {
-                printf("\r %6d RPM",rpm);
-                fflush(stdout);
-                dispCountdown = 1000000/RPM_PACKET_DELAY/DISPLAY_HZ;
-        }
 }
 
 uint16_t getTicksFromRPM(uint16_t RPM)
@@ -202,17 +195,28 @@ void startSweep(void)
         //it should really be a percentage change, such that at say 100 rpm it changes by 1 rpm per second and at 200 rpm 2 per second and so on
         case(triangle):
         default:
+                printf("Triangle wave:\nMin RPM: %d\nMax RPM: %d\n",minRPM, maxRPM);
                 while (true) {
                         if (rising){
                                 RPM++;
                                 if (RPM >= maxRPM) {
                                         rising = false;
+                                        printf("\nMAX=%d\n",RPM);
                                 }
                         } else {
                                 RPM--;
                                 if (RPM <= minRPM) {
                                         rising = true;
+                                        printf("\nMIN=%d\n",RPM);
                                 }
+                        }
+
+                        static int dispCountdown = 1000000/RPM_PACKET_DELAY/DISPLAY_HZ;
+                        dispCountdown--;
+                        if (dispCountdown == 0) {
+                                printf("\r %6d RPM",RPM);
+                                fflush(stdout);
+                                dispCountdown = 1000000/RPM_PACKET_DELAY/DISPLAY_HZ;
                         }
 
                         writeRPM(getTicksFromRPM(RPM));
