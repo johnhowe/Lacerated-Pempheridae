@@ -33,7 +33,7 @@
 #define TEST_PACKET_DELAY     25000 // microseconds to wait after sending a bench test packet
 #define RPM_PACKET_DELAY       5000 // microseconds to wait between rpm setter packets
 
-#define DISPLAY_HZ 10 // rate to update console output
+#define DISPLAY_HZ 15 // rate to update console output
 
 #define BAUD_RATE 115200
 
@@ -49,8 +49,12 @@
 #define tickSizeInFreeEMS               0.8
 
 enum pattern {
-        triangle, sinusoid, exponential
+        none, triangle, sinusoid, exponential, fileRead
 };
+enum pattern sweepShape = none;
+
+
+char sweepFile[100];
 
 int minRPM = 120;
 int maxRPM = 12000;
@@ -185,41 +189,105 @@ uint16_t getTicksFromRPM(uint16_t RPM)
 	return (uint16_t)((microSecondsInOneMinute / tickSizeInFreeEMS) / (RPM * baseTeeth));
 }
 
-void startSweep(void)
+void dispRPM(int RPM)
 {
-        enum pattern sweepShape = triangle;
+        static int dispCountdown = 0;
+        if (dispCountdown == 0) {
+                printf("\r %6d RPM",RPM);
+                fflush(stdout);
+                dispCountdown = 1000000/RPM_PACKET_DELAY/DISPLAY_HZ;
+        }
+        dispCountdown--;
+}
 
-        uint16_t RPM = minRPM;
-        int rising = 1;
-        switch(sweepShape) {
-        //it should really be a percentage change, such that at say 100 rpm it changes by 1 rpm per second and at 200 rpm 2 per second and so on
-        case(triangle):
-        default:
-                printf("Triangle wave:\nMin RPM: %d\nMax RPM: %d\n",minRPM, maxRPM);
-                while (true) {
-                        if (rising){
-                                RPM++;
-                                if (RPM >= maxRPM) {
-                                        rising = false;
-                                }
+void startFileSweep()
+{
+        printf("File sweep:\n");
+        struct trap {
+                unsigned int timestamp;
+                unsigned int rpm;
+        };
+        unsigned int currentTime = 0;
+        unsigned int RPM = 0;
+
+        FILE *fp;
+        fp = fopen(sweepFile, "r");
+        if (fp == NULL) {
+                fprintf(stderr, "Can't open input file %s.\n", sweepFile);
+                return;
+        }
+
+        struct trap pastPoint, futurePoint;
+
+        pastPoint.timestamp = 0;
+        pastPoint.rpm = 0;
+
+        while (fscanf(fp, "%d %d", &(futurePoint.timestamp), &(futurePoint.rpm)) != EOF){
+                //printf("%d %d\n", futurePoint.timestamp, futurePoint.rpm);
+                futurePoint.timestamp *= 1000; // convert milliseconds to microseconds
+                while (currentTime <= futurePoint.timestamp){
+                        // TODO interpolate current t from t1 to t2
+                        if ((futurePoint.timestamp - pastPoint.timestamp) == 0){
+                                RPM = futurePoint.rpm;
                         } else {
-                                RPM--;
-                                if (RPM <= minRPM) {
-                                        rising = true;
-                                }
+                                RPM = pastPoint.rpm + ((((currentTime - pastPoint.timestamp)*futurePoint.rpm) - ((currentTime - pastPoint.timestamp)*pastPoint.rpm))/(futurePoint.timestamp - pastPoint.timestamp));
                         }
 
-                        static int dispCountdown = 0;
-                        if (dispCountdown == 0) {
-                                printf("\r %6d RPM",RPM);
-                                fflush(stdout);
-                                dispCountdown = 1000000/RPM_PACKET_DELAY/DISPLAY_HZ;
-                        }
-                        dispCountdown--;
+                        printf("%d %d %d %d %d %d\n", pastPoint.timestamp, pastPoint.rpm, currentTime, RPM, futurePoint.timestamp, futurePoint.rpm);
 
+                        //dispRPM(RPM);
                         writeRPM(getTicksFromRPM(RPM));
                         usleep(RPM_PACKET_DELAY);
+                        currentTime += RPM_PACKET_DELAY;
                 }
+                pastPoint = futurePoint;
+        }
+
+        fclose(fp);
+}
+
+void startTriangleSweep(void)
+{
+        //"it should really be a percentage change, such that at say 100 rpm it
+        //changes by 1 rpm per second and at 200 rpm 2 per second and so on"
+        uint16_t RPM = minRPM;
+        int rising = 1;
+
+        printf("Triangle wave:\nMin RPM: %d\nMax RPM: %d\n",minRPM, maxRPM);
+        while (true) {
+                if (rising){
+                        RPM+=10;
+                        if (RPM >= maxRPM) {
+                                rising = false;
+                        }
+                } else {
+                        RPM-=10;
+                        if (RPM <= minRPM) {
+                                rising = true;
+                        }
+                }
+
+                dispRPM(RPM);
+
+                writeRPM(getTicksFromRPM(RPM));
+                usleep(RPM_PACKET_DELAY);
+        }
+}
+
+
+void startSweep(void)
+{
+        switch(sweepShape) {
+        case(fileRead):
+                startFileSweep();
+                break;
+        case(triangle):
+                startTriangleSweep();
+                break;
+        case(none):
+        default:
+                printf("No pattern specified, defaulting to triangle.\n");
+                startTriangleSweep();
                 break;
         }
 }
@@ -237,27 +305,22 @@ void parseArg(char *arg)
 
 		/* Start RPM */
 	case 's':
-		startRPM = atoi(p + 1);
+		startRPM = atoi(p+2);
 		break;
 
 		/* Min RPM */
 	case 'j':
-		minRPM = atoi(p + 1);
+		minRPM = atoi(p+2);
 		break;
 
 		/* Max RPM */
 	case 'k':
-		maxRPM = atoi(p + 1);
-		break;
-
-		/* Pattern */
-	case 'f':
-		printf("Unsupported\n");
+		maxRPM = atoi(p+2);
 		break;
 
 		/* Base teeth */
 	case 't':
-		baseTeeth = atoi(p + 1);
+		baseTeeth = atoi(p+2);
 		break;
 
 		/* Inter packet pause (microseconds) */
@@ -266,8 +329,13 @@ void parseArg(char *arg)
 
 		/* Duration of sweep (seconds) */
 	case 'd':
-		duration = atoi(p + 1);
+		duration = atoi(p+2);
 		break;
+
+        case 'f':
+                strcpy(sweepFile, p+2);
+                sweepShape = fileRead;
+                break;
 
 	default:
 		fprintf(stderr, "Bad argument '%s'\n", arg);
@@ -319,6 +387,7 @@ int main(int argc, char **argv)
 	tcsetattr(fd, TCSANOW, &oldtermios);
 	close(fd);
 
+        printf("\n");
 	return 0;
 }
 

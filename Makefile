@@ -4,7 +4,7 @@ all:
 	gcc --std=c99 -Wall -Werror -D _POSIX_C_SOURCE=200809L main.c -o pempheridae
 
 debug:
-	gcc --std=c99 -Wall -Werror -D DEBUG -D _POSIX_C_SOURCE=200809L main.c -o pempheridae
+	gcc --std=c99 -Wall -g -Werror -D DEBUG -D _POSIX_C_SOURCE=200809L main.c -o pempheridae
 
 
 install:
