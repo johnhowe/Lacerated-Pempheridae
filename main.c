@@ -29,9 +29,9 @@
 #define ESCAPED_STOP_BYTE   0x33
 
 
-#define STOP_PACKET_DELAY     15000 // microseconds to wait after sending a stop logging packet
-#define TEST_PACKET_DELAY     25000 // microseconds to wait after sending a bench test packet
-#define RPM_PACKET_DELAY       5000 // microseconds to wait between rpm setter packets
+#define STOP_PACKET_DELAY     15 // milliseconds to wait after sending a stop logging packet
+#define TEST_PACKET_DELAY     25 // milliseconds to wait after sending a bench test packet
+#define RPM_PACKET_DELAY       5 // milliseconds to wait between rpm setter packets
 
 #define DISPLAY_HZ 15 // rate to update console output
 
@@ -64,11 +64,11 @@ uint8_t baseTeeth = 12;
 
 int fd;
 
-void usleep(unsigned long usec)
+void msleep(unsigned long msec)
 {
         struct timespec reqtime;
-        reqtime.tv_sec = 0;
-        reqtime.tv_nsec = usec * 1000;
+        reqtime.tv_sec = msec/1000;
+        reqtime.tv_nsec = (msec%1000) * 1000000;
         nanosleep(&reqtime, NULL);
 }
 
@@ -195,7 +195,7 @@ void dispRPM(int RPM)
         if (dispCountdown == 0) {
                 printf("\r %6d RPM",RPM);
                 fflush(stdout);
-                dispCountdown = 1000000/RPM_PACKET_DELAY/DISPLAY_HZ;
+                dispCountdown = 1000/RPM_PACKET_DELAY/DISPLAY_HZ;
         }
         dispCountdown--;
 }
@@ -204,11 +204,11 @@ void startFileSweep()
 {
         printf("File sweep:\n");
         struct trap {
-                unsigned int timestamp;
+                unsigned long timestamp;
                 unsigned int rpm;
         };
-        unsigned int currentTime = 0;
-        unsigned int RPM = 0;
+        unsigned long currentTime = 0;
+        int RPM = 0;
 
         FILE *fp;
         fp = fopen(sweepFile, "r");
@@ -222,22 +222,20 @@ void startFileSweep()
         pastPoint.timestamp = 0;
         pastPoint.rpm = 0;
 
-        while (fscanf(fp, "%d %d", &(futurePoint.timestamp), &(futurePoint.rpm)) != EOF){
-                //printf("%d %d\n", futurePoint.timestamp, futurePoint.rpm);
-                futurePoint.timestamp *= 1000; // convert milliseconds to microseconds
+        while (fscanf(fp, "%ld %d", &(futurePoint.timestamp), &(futurePoint.rpm)) != EOF){
                 while (currentTime <= futurePoint.timestamp){
-                        // TODO interpolate current t from t1 to t2
                         if ((futurePoint.timestamp - pastPoint.timestamp) == 0){
                                 RPM = futurePoint.rpm;
                         } else {
-                                RPM = pastPoint.rpm + ((((currentTime - pastPoint.timestamp)*futurePoint.rpm) - ((currentTime - pastPoint.timestamp)*pastPoint.rpm))/(futurePoint.timestamp - pastPoint.timestamp));
+                                long n1 = (currentTime - pastPoint.timestamp)*futurePoint.rpm;
+                                long n2 = (currentTime - pastPoint.timestamp)*pastPoint.rpm;
+                                long d = futurePoint.timestamp - pastPoint.timestamp;
+                                RPM = (int)(pastPoint.rpm + (double)((n1 - n2)/(d)));
                         }
 
-                        printf("%d %d %d %d %d %d\n", pastPoint.timestamp, pastPoint.rpm, currentTime, RPM, futurePoint.timestamp, futurePoint.rpm);
-
-                        //dispRPM(RPM);
+                        dispRPM(RPM);
                         writeRPM(getTicksFromRPM(RPM));
-                        usleep(RPM_PACKET_DELAY);
+                        msleep(RPM_PACKET_DELAY);
                         currentTime += RPM_PACKET_DELAY;
                 }
                 pastPoint = futurePoint;
@@ -270,7 +268,7 @@ void startTriangleSweep(void)
                 dispRPM(RPM);
 
                 writeRPM(getTicksFromRPM(RPM));
-                usleep(RPM_PACKET_DELAY);
+                msleep(RPM_PACKET_DELAY);
         }
 }
 
@@ -379,9 +377,9 @@ int main(int argc, char **argv)
 	}
 
 	stopLogging();
-        usleep(STOP_PACKET_DELAY);
+        msleep(STOP_PACKET_DELAY);
 	setupBenchTest(baseTeeth, getTicksFromRPM(startRPM));
-        usleep(TEST_PACKET_DELAY);
+        msleep(TEST_PACKET_DELAY);
 	startSweep();
 
 	tcsetattr(fd, TCSANOW, &oldtermios);
