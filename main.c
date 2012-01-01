@@ -200,7 +200,7 @@ void dispRPM(int RPM)
         dispCountdown--;
 }
 
-void startFileSweep()
+void startFileSweep(void)
 {
         printf("File sweep:\n");
         struct trap {
