@@ -61,6 +61,7 @@ int maxRPM = 12000;
 int startRPM = 120;
 int duration = 1;
 uint8_t baseTeeth = 12;
+int stepIncrement = 10;
 
 int fd;
 
@@ -251,15 +252,15 @@ void startTriangleSweep(void)
         uint16_t RPM = minRPM;
         int rising = 1;
 
-        printf("Triangle wave:\nMin RPM: %d\nMax RPM: %d\n",minRPM, maxRPM);
+        printf("Triangle wave:\nMin RPM: %d\nMax RPM: %d\nIncrement size: %d\n",minRPM, maxRPM, stepIncrement);
         while (true) {
                 if (rising){
-                        RPM+=10;
+                        RPM+=stepIncrement;
                         if (RPM >= maxRPM) {
                                 rising = false;
                         }
                 } else {
-                        RPM-=10;
+                        RPM-=stepIncrement;
                         if (RPM <= minRPM) {
                                 rising = true;
                         }
@@ -315,6 +316,11 @@ void parseArg(char *arg)
 	case 'k':
 		maxRPM = atoi(p+2);
 		break;
+
+                /* RPM increment at each step in triangle mode */
+        case 'i':
+                stepIncrement = atoi(p+2);
+                break;
 
 		/* Base teeth */
 	case 't':
