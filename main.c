@@ -62,6 +62,7 @@ int startRPM = 120;
 int duration = 1;
 uint8_t baseTeeth = 12;
 int stepIncrement = 10;
+int doRepeat = false;
 
 int fd;
 
@@ -208,41 +209,44 @@ void startFileSweep(void)
                 unsigned long timestamp;
                 unsigned int rpm;
         };
-        unsigned long currentTime = 0;
-        int RPM = 0;
 
-        FILE *fp;
-        fp = fopen(sweepFile, "r");
-        if (fp == NULL) {
-                fprintf(stderr, "Can't open input file %s.\n", sweepFile);
-                return;
-        }
+        do {
+                unsigned long currentTime = 0;
+                int RPM = 0;
 
-        struct trap pastPoint, futurePoint;
-
-        pastPoint.timestamp = 0;
-        pastPoint.rpm = 0;
-
-        while (fscanf(fp, "%ld %d", &(futurePoint.timestamp), &(futurePoint.rpm)) != EOF){
-                while (currentTime <= futurePoint.timestamp){
-                        if ((futurePoint.timestamp - pastPoint.timestamp) == 0){
-                                RPM = futurePoint.rpm;
-                        } else {
-                                long n1 = (currentTime - pastPoint.timestamp)*futurePoint.rpm;
-                                long n2 = (currentTime - pastPoint.timestamp)*pastPoint.rpm;
-                                long d = futurePoint.timestamp - pastPoint.timestamp;
-                                RPM = (int)(pastPoint.rpm + (double)((n1 - n2)/(d)));
-                        }
-
-                        dispRPM(RPM);
-                        writeRPM(getTicksFromRPM(RPM));
-                        msleep(RPM_PACKET_DELAY);
-                        currentTime += RPM_PACKET_DELAY;
+                FILE *fp;
+                fp = fopen(sweepFile, "r");
+                if (fp == NULL) {
+                        fprintf(stderr, "Can't open input file %s.\n", sweepFile);
+                        return;
                 }
-                pastPoint = futurePoint;
-        }
 
-        fclose(fp);
+                struct trap pastPoint, futurePoint;
+
+                pastPoint.timestamp = 0;
+                pastPoint.rpm = 0;
+
+                while (fscanf(fp, "%ld %d", &(futurePoint.timestamp), &(futurePoint.rpm)) != EOF){
+                        while (currentTime <= futurePoint.timestamp){
+                                if ((futurePoint.timestamp - pastPoint.timestamp) == 0){
+                                        RPM = futurePoint.rpm;
+                                } else {
+                                        long n1 = (currentTime - pastPoint.timestamp)*futurePoint.rpm;
+                                        long n2 = (currentTime - pastPoint.timestamp)*pastPoint.rpm;
+                                        long d = futurePoint.timestamp - pastPoint.timestamp;
+                                        RPM = (int)(pastPoint.rpm + (double)((n1 - n2)/(d)));
+                                }
+
+                                dispRPM(RPM);
+                                writeRPM(getTicksFromRPM(RPM));
+                                msleep(RPM_PACKET_DELAY);
+                                currentTime += RPM_PACKET_DELAY;
+                        }
+                        pastPoint = futurePoint;
+                }
+
+                fclose(fp);
+        } while (doRepeat);
 }
 
 void startTriangleSweep(void)
@@ -250,7 +254,7 @@ void startTriangleSweep(void)
         //"it should really be a percentage change, such that at say 100 rpm it
         //changes by 1 rpm per second and at 200 rpm 2 per second and so on"
         uint16_t RPM = minRPM;
-        int rising = 1;
+        int rising = true;
 
         printf("Triangle wave:\nMin RPM: %d\nMax RPM: %d\nIncrement size: %d\n",minRPM, maxRPM, stepIncrement);
         while (true) {
@@ -262,7 +266,11 @@ void startTriangleSweep(void)
                 } else {
                         RPM-=stepIncrement;
                         if (RPM <= minRPM) {
-                                rising = true;
+                                if (doRepeat) {
+                                        rising = true;
+                                } else {
+                                        break;
+                                }
                         }
                 }
 
@@ -339,6 +347,10 @@ void parseArg(char *arg)
         case 'f':
                 strcpy(sweepFile, p+2);
                 sweepShape = fileRead;
+                break;
+
+        case 'r':
+                doRepeat = true;
                 break;
 
 	default:
