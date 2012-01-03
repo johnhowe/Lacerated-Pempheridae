@@ -132,7 +132,7 @@ void sendPacket(uint8_t* rawPacket, int rawLength)
         int ret = 0;
         uint8_t buf;
         do {
-                read(fd, &buf, 1);
+                ret = read(fd, &buf, 1);
         } while (ret > 0);
 
 	uint8_t encodedPacket[(rawLength * 2) + 2];    // Worst case, 100% escaped bytes + start and stop
