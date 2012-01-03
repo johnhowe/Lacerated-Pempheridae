@@ -128,6 +128,13 @@ int encodePacket(uint8_t* rawPacket, uint8_t* encoded, int rawLength)
 
 void sendPacket(uint8_t* rawPacket, int rawLength)
 {
+        // Read and discard any incoming data
+        int ret = 0;
+        uint8_t buf;
+        do {
+                read(fd, &buf, 1);
+        } while (ret > 0);
+
 	uint8_t encodedPacket[(rawLength * 2) + 2];    // Worst case, 100% escaped bytes + start and stop
 	int encodedLength = encodePacket(rawPacket, encodedPacket, rawLength);    // Actual length returned
 	write(fd, encodedPacket, encodedLength);
@@ -371,7 +378,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	fd = open("/dev/ttyUSB0", O_RDWR);
+	fd = open("/dev/ttyUSB0", O_RDWR | O_NONBLOCK);
 	tcgetattr(fd, &oldtermios);
 
 	/* 8O1 */
