@@ -65,6 +65,7 @@ int stepIncrement = 10;
 int doRepeat = false;
 
 int fd;
+FILE *dbgfp;
 
 void msleep(unsigned long msec)
 {
@@ -138,6 +139,7 @@ void sendPacket(uint8_t* rawPacket, int rawLength)
 	uint8_t encodedPacket[(rawLength * 2) + 2];    // Worst case, 100% escaped bytes + start and stop
 	int encodedLength = encodePacket(rawPacket, encodedPacket, rawLength);    // Actual length returned
 	write(fd, encodedPacket, encodedLength);
+        fwrite(encodePacket, sizeof(uint8_t), encodedLength, dbgfp);
 }
 
 void stopLogging(void)
@@ -369,6 +371,13 @@ void parseArg(char *arg)
 
 int main(int argc, char **argv)
 {
+
+        dbgfp = fopen("/tmp/Pempheridae", "w");
+        if (dbgfp == NULL) {
+                fprintf(stderr, "Can't open /tmp/Pempheridae file.\n");
+                return -1;
+        }
+
         struct termios oldtermios, termopts;
 
 	for (int i = 1; i < argc; i++) {
@@ -410,6 +419,7 @@ int main(int argc, char **argv)
 
 	tcsetattr(fd, TCSANOW, &oldtermios);
 	close(fd);
+        fclose(dbgfp);
 
         printf("\n");
 	return 0;
