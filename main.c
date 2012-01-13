@@ -286,6 +286,7 @@ void startTriangleSweep(void)
                 writeRPM(getTicksFromRPM(RPM));
                 msleep(RPM_PACKET_DELAY);
         }
+        dispRPM(RPM);
 }
 
 
