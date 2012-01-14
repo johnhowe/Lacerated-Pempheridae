@@ -138,7 +138,9 @@ void sendPacket(uint8_t* rawPacket, int rawLength)
 
 	uint8_t encodedPacket[(rawLength * 2) + 2];    // Worst case, 100% escaped bytes + start and stop
 	int encodedLength = encodePacket(rawPacket, encodedPacket, rawLength);    // Actual length returned
-	write(fd, encodedPacket, encodedLength);
+	if (write(fd, encodedPacket, encodedLength) != encodedLength) {
+                fprintf(stderr, "I'm sorry Fred, I'm afraid I can't do that.\n");
+        }
         fsync(fd);
         fwrite(encodePacket, sizeof(uint8_t), encodedLength, dbgfp);
         fflush(dbgfp);
