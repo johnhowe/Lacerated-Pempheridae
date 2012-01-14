@@ -140,6 +140,7 @@ void sendPacket(uint8_t* rawPacket, int rawLength)
 	int encodedLength = encodePacket(rawPacket, encodedPacket, rawLength);    // Actual length returned
 	write(fd, encodedPacket, encodedLength);
         fwrite(encodePacket, sizeof(uint8_t), encodedLength, dbgfp);
+        fflush(dbgfp);
 }
 
 void stopLogging(void)
@@ -402,11 +403,9 @@ int main(int argc, char **argv)
 	termopts.c_cflag |= CS8;
 	if (tcsetattr(fd, TCSANOW, &termopts) < 0) {
 		perror("Unable to set terminal parameters");
-
 #ifndef DEBUG
 		tcsetattr(fd, TCSANOW, &oldtermios);
 		close(fd);
-
 		return -1;
 #endif
 	}
