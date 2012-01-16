@@ -201,7 +201,11 @@ void writeRPM(uint16_t rpmTicks)
 
 uint16_t getTicksFromRPM(uint16_t RPM)
 {
-	return (uint16_t)((microSecondsInOneMinute / tickSizeInFreeEMS) / (RPM * baseTeeth));
+        uint16_t ticks = (uint16_t)((microSecondsInOneMinute / tickSizeInFreeEMS) / (RPM * baseTeeth));
+        if (ticks < 200) {
+                ticks = 200;
+        }
+	return ticks;
 }
 
 void dispRPM(int RPM)
