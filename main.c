@@ -138,10 +138,12 @@ void sendPacket(uint8_t* rawPacket, int rawLength)
 
 	uint8_t encodedPacket[(rawLength * 2) + 2];    // Worst case, 100% escaped bytes + start and stop
 	int encodedLength = encodePacket(rawPacket, encodedPacket, rawLength);    // Actual length returned
-	if (write(fd, encodedPacket, encodedLength) != encodedLength) {
+#ifndef DEBUG
+        if (write(fd, encodedPacket, encodedLength) != encodedLength) {
                 fprintf(stderr, "I'm sorry Fred, I'm afraid I can't do that.\n");
         }
         fsync(fd);
+#endif
         fwrite(encodePacket, sizeof(uint8_t), encodedLength, dbgfp);
         fflush(dbgfp);
 }
@@ -211,7 +213,7 @@ uint16_t getTicksFromRPM(uint16_t RPM)
 void dispRPM(int RPM)
 {
         static int dispCountdown = 0;
-        if (dispCountdown == 0) {
+        if (dispCountdown == 0 || RPM == minRPM || RPM == maxRPM) {
                 printf("\r %6d RPM",RPM);
                 fflush(stdout);
                 dispCountdown = 1000/RPM_PACKET_DELAY/DISPLAY_HZ;
