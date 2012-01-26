@@ -140,7 +140,7 @@ void sendPacket(uint8_t* rawPacket, int rawLength)
 	int encodedLength = encodePacket(rawPacket, encodedPacket, rawLength);    // Actual length returned
 #ifndef DEBUG
         if (write(fd, encodedPacket, encodedLength) != encodedLength) {
-                fprintf(stderr, "I'm sorry Fred, I'm afraid I can't do that.\n");
+                fprintf(stderr, "Write to /dev/ttyUSB0 failed.\n");
         }
         fsync(fd);
 #endif
@@ -213,7 +213,7 @@ uint16_t getTicksFromRPM(uint16_t RPM)
 void dispRPM(int RPM)
 {
         static int dispCountdown = 0;
-        if (dispCountdown == 0 || RPM == minRPM || RPM == maxRPM) {
+        if (dispCountdown == 0) {
                 printf("\r %6d RPM",RPM);
                 fflush(stdout);
                 dispCountdown = 1000/RPM_PACKET_DELAY/DISPLAY_HZ;
