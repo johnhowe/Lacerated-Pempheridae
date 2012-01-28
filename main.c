@@ -182,7 +182,7 @@ void setupBenchTest(uint8_t eventsPerCycle, uint16_t ticksPerEvent)
 	static uint8_t setupBenchTestPacket[] = { 0x00, 0x77, 0x77, 0x01, 0x0C, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
         if (nMissingTeeth > 5 || nMissingTeeth < 0) {
                 nMissingTeeth = 1;
-                fprintf(stderr, "Using 1 missing tooth. \n", sweepFile);
+                fprintf(stderr, "Using 1 missing tooth. \n");
         }
         setupBenchTestPacket[missingToothOffset + 2*nMissingTeeth] = 0x03;
 
