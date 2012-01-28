@@ -63,7 +63,7 @@ int duration = 1;
 uint8_t baseTeeth = 12;
 int stepIncrement = 10;
 int doRepeat = false;
-int nMissingTeeth = 0;
+int nMissingTeeth = 1;
 
 int fd;
 FILE *dbgfp;
@@ -180,7 +180,11 @@ void setupBenchTest(uint8_t eventsPerCycle, uint16_t ticksPerEvent)
 {
         const int missingToothOffset = 16;
 	static uint8_t setupBenchTestPacket[] = { 0x00, 0x77, 0x77, 0x01, 0x0C, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-        setupBenchTestPacket[missingToothOffset + nMissingTeeth] = 0x03;
+        if (nMissingTeeth > 5 || nMissingTeeth < 0) {
+                nMissingTeeth = 1;
+                fprintf(stderr, "Using 1 missing tooth. \n", sweepFile);
+        }
+        setupBenchTestPacket[missingToothOffset + 2*nMissingTeeth] = 0x03;
 
 	uint8_t lowByte = (uint8_t)(0xFF & ticksPerEvent);
 	uint8_t highByte = (uint8_t)(ticksPerEvent >> 8);
