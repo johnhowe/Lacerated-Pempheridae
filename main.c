@@ -63,6 +63,7 @@ int duration = 1;
 uint8_t baseTeeth = 12;
 int stepIncrement = 10;
 int doRepeat = false;
+int nMissingTeeth = 0;
 
 int fd;
 FILE *dbgfp;
@@ -177,7 +178,9 @@ void stopLogging(void)
  */
 void setupBenchTest(uint8_t eventsPerCycle, uint16_t ticksPerEvent)
 {
-	static uint8_t setupBenchTestPacket[] = { 0x00, 0x77, 0x77, 0x01, 0x0C, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+        const int missingToothOffset = 16;
+	static uint8_t setupBenchTestPacket[] = { 0x00, 0x77, 0x77, 0x01, 0x0C, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+        setupBenchTestPacket[missingToothOffset + nMissingTeeth] = 0x03;
 
 	uint8_t lowByte = (uint8_t)(0xFF & ticksPerEvent);
 	uint8_t highByte = (uint8_t)(ticksPerEvent >> 8);
@@ -371,6 +374,10 @@ void parseArg(char *arg)
 
         case 'r':
                 doRepeat = true;
+                break;
+
+        case 'm':
+                nMissingTeeth = atoi(p+2);
                 break;
 
 	default:
