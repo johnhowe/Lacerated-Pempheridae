@@ -44,6 +44,7 @@
 #define RPM_LOW_BYTE_INDEX              10
 #define RPM_HIGH_BYTE_INDEX              9
 
+#define TOO_MANY_ERRORS 20
 
 #define microSecondsInOneMinute  60000000
 #define tickSizeInFreeEMS               0.8
@@ -128,8 +129,9 @@ int encodePacket(uint8_t* rawPacket, uint8_t* encoded, int rawLength)
 	return outputIndex;
 }
 
-void sendPacket(uint8_t* rawPacket, int rawLength)
+int sendPacket(uint8_t* rawPacket, int rawLength)
 {
+        int txSuccess = true;
         // Read and discard any incoming data
         int ret = 0;
         uint8_t buf;
@@ -140,20 +142,25 @@ void sendPacket(uint8_t* rawPacket, int rawLength)
 	uint8_t encodedPacket[(rawLength * 2) + 2];    // Worst case, 100% escaped bytes + start and stop
 	int encodedLength = encodePacket(rawPacket, encodedPacket, rawLength);    // Actual length returned
 #ifndef DEBUG
-        if (write(fd, encodedPacket, encodedLength) != encodedLength) {
+        if (write(fd, encodedPacket, encodedLength) == encodedLength) {
+                txSuccess = true;
+                fsync(fd);
+                fwrite(encodePacket, sizeof(uint8_t), encodedLength, dbgfp);
+                fflush(dbgfp);
+        } else {
+                txSuccess = false;
                 fprintf(stderr, "Write to /dev/ttyUSB0 failed.\n");
+                msleep(RPM_PACKET_DELAY*10);
         }
-        fsync(fd);
 #endif
-        fwrite(encodePacket, sizeof(uint8_t), encodedLength, dbgfp);
-        fflush(dbgfp);
+        return txSuccess;
 }
 
-void stopLogging(void)
+int stopLogging(void)
 {
 	// Write to RAM description{flag,  payloadID, locationID,     offset,     length, data};
 	uint8_t stop_streaming[] = { 0x00, 0x01, 0x00, 0x90, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00 };
-	sendPacket(stop_streaming, sizeof(stop_streaming));
+	return sendPacket(stop_streaming, sizeof(stop_streaming));
 }
 
 /**
@@ -176,7 +183,7 @@ void stopLogging(void)
  * 0x0000 irrelevant as long as it's not 0x3, zeros easy to count
  * 0x0000 irrelevant as long as it's not 0x3, zeros easy to count
  */
-void setupBenchTest(uint8_t eventsPerCycle, uint16_t ticksPerEvent)
+int setupBenchTest(uint8_t eventsPerCycle, uint16_t ticksPerEvent)
 {
         const int missingToothOffset = 16;
 	static uint8_t setupBenchTestPacket[] = { 0x00, 0x77, 0x77, 0x01, 0x0C, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
@@ -192,10 +199,10 @@ void setupBenchTest(uint8_t eventsPerCycle, uint16_t ticksPerEvent)
 	setupBenchTestPacket[TICKS_PER_EVENT_HIGH_BYTE_INDEX] = highByte;
 	setupBenchTestPacket[BASETEETH_INDEX] = eventsPerCycle;
 
-        sendPacket(setupBenchTestPacket, sizeof(setupBenchTestPacket));
+        return sendPacket(setupBenchTestPacket, sizeof(setupBenchTestPacket));
 }
 
-void writeRPM(uint16_t rpmTicks)
+int writeRPM(uint16_t rpmTicks)
 {
 
 	static uint8_t adjustRpmPacket[] = { 0x00, 0x01, 0x00, 0xF0, 0x01, 0x00, 0x1A, 0x00, 0x02, 0x00, 0x00 };
@@ -205,7 +212,7 @@ void writeRPM(uint16_t rpmTicks)
         adjustRpmPacket[RPM_LOW_BYTE_INDEX] = lowByte;
         adjustRpmPacket[RPM_HIGH_BYTE_INDEX] = highByte;
 
-	sendPacket(adjustRpmPacket, sizeof(adjustRpmPacket));
+	return sendPacket(adjustRpmPacket, sizeof(adjustRpmPacket));
 }
 
 uint16_t getTicksFromRPM(uint16_t RPM)
@@ -228,7 +235,7 @@ void dispRPM(int RPM)
         dispCountdown--;
 }
 
-void startFileSweep(void)
+int startFileSweep(void)
 {
         printf("File sweep:\n");
         struct trap {
@@ -244,7 +251,7 @@ void startFileSweep(void)
                 fp = fopen(sweepFile, "r");
                 if (fp == NULL) {
                         fprintf(stderr, "Can't open input file %s.\n", sweepFile);
-                        return;
+                        return false;
                 }
 
                 struct trap pastPoint, futurePoint;
@@ -264,7 +271,15 @@ void startFileSweep(void)
                                 }
 
                                 dispRPM(RPM);
-                                writeRPM(getTicksFromRPM(RPM));
+                                if (writeRPM(getTicksFromRPM(RPM)) == false) {
+                                        static int errCount = 0;
+                                        if (++errCount > TOO_MANY_ERRORS) {
+                                                fclose(fp);
+                                                fprintf(stderr, "Too many errors.\n");
+                                                return false;
+                                        }
+                                }
+
                                 msleep(RPM_PACKET_DELAY);
                                 currentTime += RPM_PACKET_DELAY;
                         }
@@ -273,9 +288,11 @@ void startFileSweep(void)
 
                 fclose(fp);
         } while (doRepeat);
+
+        return true;
 }
 
-void startTriangleSweep(void)
+int startTriangleSweep(void)
 {
         //"it should really be a percentage change, such that at say 100 rpm it
         //changes by 1 rpm per second and at 200 rpm 2 per second and so on"
@@ -302,10 +319,18 @@ void startTriangleSweep(void)
 
                 dispRPM(RPM);
 
-                writeRPM(getTicksFromRPM(RPM));
+                if (writeRPM(getTicksFromRPM(RPM)) == false) {
+                        static int errCount = 0;
+                        if (++errCount > TOO_MANY_ERRORS) {
+                                fprintf(stderr, "Too many errors.\n");
+                                return false;
+                        }
+                }
+
                 msleep(RPM_PACKET_DELAY);
         }
         dispRPM(RPM);
+        return true;
 }
 
 
