@@ -144,7 +144,7 @@ int sendPacket(uint8_t* rawPacket, int rawLength)
 #ifndef DEBUG
         if (write(fd, encodedPacket, encodedLength) == encodedLength) {
                 txSuccess = true;
-                fsync(fd);
+                tcdrain(fd);
                 fwrite(encodePacket, sizeof(uint8_t), encodedLength, dbgfp);
                 fflush(dbgfp);
         } else {
