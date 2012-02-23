@@ -209,16 +209,19 @@ int writeRPM(uint16_t rpmTicks)
                 setupBenchTest(baseTeeth, rpmTicks);
                 msleep(TEST_PACKET_DELAY);
                 initialised = true;
+
+                return true;
+        } else {
+
+                static uint8_t adjustRpmPacket[] = { 0x00, 0x01, 0x00, 0xF0, 0x01, 0x00, 0x1A, 0x00, 0x02, 0x00, 0x00 };
+
+                uint8_t lowByte = (uint8_t)(0xFF & rpmTicks);
+                uint8_t highByte = (uint8_t)(rpmTicks >> 8);
+                adjustRpmPacket[RPM_LOW_BYTE_INDEX] = lowByte;
+                adjustRpmPacket[RPM_HIGH_BYTE_INDEX] = highByte;
+
+                return sendPacket(adjustRpmPacket, sizeof(adjustRpmPacket));
         }
-
-	static uint8_t adjustRpmPacket[] = { 0x00, 0x01, 0x00, 0xF0, 0x01, 0x00, 0x1A, 0x00, 0x02, 0x00, 0x00 };
-
-        uint8_t lowByte = (uint8_t)(0xFF & rpmTicks);
-        uint8_t highByte = (uint8_t)(rpmTicks >> 8);
-        adjustRpmPacket[RPM_LOW_BYTE_INDEX] = lowByte;
-        adjustRpmPacket[RPM_HIGH_BYTE_INDEX] = highByte;
-
-	return sendPacket(adjustRpmPacket, sizeof(adjustRpmPacket));
 }
 
 uint16_t getTicksFromRPM(uint16_t RPM)
