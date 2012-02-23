@@ -59,7 +59,6 @@ char sweepFile[100];
 
 int minRPM = 120;
 int maxRPM = 12000;
-int startRPM = 120;
 int duration = 1;
 uint8_t baseTeeth = 12;
 int stepIncrement = 10;
@@ -204,6 +203,13 @@ int setupBenchTest(uint8_t eventsPerCycle, uint16_t ticksPerEvent)
 
 int writeRPM(uint16_t rpmTicks)
 {
+        static int initialised = false;
+        if (!initialised) {
+                msleep(STOP_PACKET_DELAY);
+                setupBenchTest(baseTeeth, rpmTicks);
+                msleep(TEST_PACKET_DELAY);
+                initialised = true;
+        }
 
 	static uint8_t adjustRpmPacket[] = { 0x00, 0x01, 0x00, 0xF0, 0x01, 0x00, 0x1A, 0x00, 0x02, 0x00, 0x00 };
 
@@ -362,11 +368,6 @@ void parseArg(char *arg)
 		exit(1);
 		break;
 
-		/* Start RPM */
-	case 's':
-		startRPM = atoi(p+2);
-		break;
-
 		/* Min RPM */
 	case 'j':
 		minRPM = atoi(p+2);
@@ -456,9 +457,6 @@ int main(int argc, char **argv)
 	}
 
 	stopLogging();
-        msleep(STOP_PACKET_DELAY);
-	setupBenchTest(baseTeeth, getTicksFromRPM(startRPM));
-        msleep(TEST_PACKET_DELAY);
 	startSweep();
 
 	tcsetattr(fd, TCSANOW, &oldtermios);
