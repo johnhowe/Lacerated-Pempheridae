@@ -367,7 +367,17 @@ void parseArg(char *arg)
 	switch (*p) {
                 /* Help */
 	case 'h':
-		printf("Help is on the way.\n");
+		printf("Help?\n");
+		printf("\n");
+		printf("-j Minimum RPM\n");
+		printf("-k Maximum RPM\n");
+		printf("-p Inter packet pause (microseconds)\n");
+		printf("-t Base teeth\n");
+		printf("-m Number of missing teeth\n");
+		printf("-d Duration of sweep (seconds)\n");
+		printf("-f Sweep file location\n");
+		printf("-r Repeat the waveform\n");
+		printf("-i RPM increment at each step in triangle mode\n");
 		exit(1);
 		break;
 
@@ -400,15 +410,18 @@ void parseArg(char *arg)
 		duration = atoi(p+2);
 		break;
 
+                /* Sweep file */
         case 'f':
                 strcpy(sweepFile, p+2);
                 sweepShape = fileRead;
                 break;
 
+                /* Repeat the waveform */
         case 'r':
                 doRepeat = true;
                 break;
 
+                /* Number of missing teeth */
         case 'm':
                 nMissingTeeth = atoi(p+2);
                 break;
