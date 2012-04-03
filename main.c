@@ -59,7 +59,6 @@ char sweepFile[100];
 
 int minRPM = 120;
 int maxRPM = 12000;
-int duration = 1;
 uint8_t baseTeeth = 12;
 int stepIncrement = 10;
 int doRepeat = false;
@@ -374,7 +373,6 @@ void parseArg(char *arg)
 		printf("-p Inter packet pause (microseconds)\n");
 		printf("-t Base teeth\n");
 		printf("-m Number of missing teeth\n");
-		printf("-d Duration of sweep (seconds)\n");
 		printf("-f Sweep file location\n");
 		printf("-r Repeat the waveform\n");
 		printf("-i RPM increment at each step in triangle mode\n");
@@ -403,11 +401,6 @@ void parseArg(char *arg)
 
 		/* Inter packet pause (microseconds) */
 	case 'p':
-		break;
-
-		/* Duration of sweep (seconds) */
-	case 'd':
-		duration = atoi(p+2);
 		break;
 
                 /* Sweep file */
