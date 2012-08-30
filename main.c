@@ -17,6 +17,8 @@
 #include <sys/ioctl.h>
 #include <time.h>
 
+#define DEVICE "/dev/ttyUSB0"
+
 #define true 1
 #define false 0
 
@@ -147,7 +149,7 @@ int sendPacket(uint8_t* rawPacket, int rawLength)
                 fflush(dbgfp);
         } else {
                 txSuccess = false;
-                fprintf(stderr, "Write to /dev/ttyUSB0 failed.\n");
+                fprintf(stderr, "Write to " DEVICE " failed.\n");
                 msleep(RPM_PACKET_DELAY*10);
         }
 #endif
@@ -444,7 +446,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	fd = open("/dev/ttyUSB0", O_RDWR | O_NONBLOCK);
+	fd = open(DEVICE, O_RDWR | O_NONBLOCK);
 	tcgetattr(fd, &oldtermios);
 
 	/* 8O1 */
