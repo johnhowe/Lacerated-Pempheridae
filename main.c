@@ -67,7 +67,9 @@ int doRepeat = false;
 int nMissingTeeth = 1;
 
 int fd;
+#ifdef DEBUG
 FILE *dbgfp;
+#endif
 
 void msleep(unsigned long msec)
 {
@@ -145,13 +147,14 @@ int sendPacket(uint8_t* rawPacket, int rawLength)
         if (write(fd, encodedPacket, encodedLength) == encodedLength) {
                 txSuccess = true;
                 tcdrain(fd);
-                fwrite(encodePacket, sizeof(uint8_t), encodedLength, dbgfp);
-                fflush(dbgfp);
         } else {
                 txSuccess = false;
                 fprintf(stderr, "Write to " DEVICE " failed.\n");
                 msleep(RPM_PACKET_DELAY*10);
         }
+#else
+        fwrite(encodePacket, sizeof(uint8_t), encodedLength, dbgfp);
+        fflush(dbgfp);
 #endif
         return txSuccess;
 }
@@ -430,11 +433,13 @@ void parseArg(char *arg)
 int main(int argc, char **argv)
 {
 
+#ifdef DEBUG
         dbgfp = fopen("/tmp/Pempheridae", "w");
         if (dbgfp == NULL) {
                 fprintf(stderr, "Can't open /tmp/Pempheridae file.\n");
                 return -1;
         }
+#endif
 
         struct termios oldtermios, termopts;
 
@@ -472,7 +477,9 @@ int main(int argc, char **argv)
 
 	tcsetattr(fd, TCSANOW, &oldtermios);
 	close(fd);
+#ifdef DEBUG
         fclose(dbgfp);
+#endif
 
         printf("\n");
 	return 0;
